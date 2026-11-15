@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>語音辨識測試</title>
+<style>
+  :root{--navy:#1F3A5F;--navy-soft:#E8EEF6;--orange:#F28C38;--green:#2E9E6B;--green-soft:#E1F4EB;--red:#D9534F;--red-soft:#FBE4E3;--ink:#1E2633;--muted:#6B7686;--line:#E3E8EF;--bg:#F6F8FB;--card:#fff}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:720px;margin:0 auto;padding:20px 16px 60px}
+  h1{font-size:20px;color:var(--navy);margin:0 0 4px}
+  .small{font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px}
+  .env{font-size:12px;line-height:1.7;word-break:break-all}
+  .env b{color:var(--navy)}
+  .test{display:flex;flex-direction:column;gap:8px}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .name{font-weight:700;color:var(--navy);font-size:15px}
+  .desc{font-size:12px;color:var(--muted)}
+  button{font:inherit;font-weight:700;border:0;border-radius:999px;cursor:pointer}
+  .go{background:var(--orange);color:#fff;padding:9px 16px;font-size:14px;flex:none}
+  .go.live{background:var(--red)}
+  .status{font-size:13px;padding:6px 10px;border-radius:10px;background:var(--navy-soft);color:var(--navy)}
+  .status.ok{background:var(--green-soft);color:#1D6B48}
+  .status.err{background:var(--red-soft);color:var(--red)}
+  .log{font-size:11px;color:var(--muted);font-family:ui-monospace,Menlo,monospace;white-space:pre-wrap;line-height:1.5}
+  .primary{background:var(--navy);color:#fff;padding:12px 18px;font-size:15px;width:100%}
+  a{color:var(--navy)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>語音辨識測試</h1>
+  <p class="small">請用 iPhone 的 Safari App 打開這頁（不要從 LINE 等 App 裡點開）。每個按鈕按一次，說一句 "Hello, my name is Emily."；有「停止」的再按一次停止。全部試完後按最下面的「複製全部結果」，貼回給 Claude。</p>
+
+  <div class="card env" id="env"></div>
+  <div id="tests"></div>
+
+  <button class="primary" id="copy">複製全部結果</button>
+  <p class="small" style="margin-top:12px"><a href="./">回跟讀練習室</a></p>
+</div>
+<textarea id="clip" style="position:fixed;left:-9999px;top:0"></textarea>
+
+<script>
+const $ = id => document.getElementById(id);
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+/* ---------- 環境資訊 ---------- */
+const env = {
+  "userAgent": navigator.userAgent,
+  "網址": (location.origin + location.pathname).slice(0, 80),
+  "https (secure context)": String(window.isSecureContext),
+  "主畫面 App 模式": String(!!(navigator.standalone || (window.matchMedia && matchMedia("(display-mode: standalone)").matches))),
+  "SpeechRecognition": window.SpeechRecognition ? "有" : "無",
+  "webkitSpeechRecognition": window.webkitSpeechRecognition ? "有" : "無",
+  "getUserMedia": (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) ? "有" : "無",
+  "MediaRecorder": window.MediaRecorder ? "有" : "無",
+  "speechSynthesis": window.speechSynthesis ? "有" : "無",
+  "麥克風權限": "查詢中"
+};
+function renderEnv(){ $("env").innerHTML = Object.entries(env).map(([k,v]) => `<div><b>${k}</b>：${esc(v)}</div>`).join(""); }
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+renderEnv();
+(async () => {
+  try{ const p = await navigator.permissions.query({name:"microphone"}); env["麥克風權限"] = p.state; }
+  catch(e){ env["麥克風權限"] = "無法查詢"; }
+  renderEnv();
+})();
+
+/* ---------- 測試項目 ---------- */
+const TESTS = [
+  {id:"mic",  name:"0. 只測麥克風", desc:"不辨識，只要求麥克風權限，錄 2 秒", mic:true},
+  {id:"a",    name:"A. 最簡單", desc:"en-US，只聽一句，不顯示即時文字", lang:"en-US", cont:false, interim:false},
+  {id:"b",    name:"B. 跟正式網頁一樣", desc:"en-US，連續聽＋即時文字，要按停止", lang:"en-US", cont:true, interim:true},
+  {id:"c",    name:"C. 只聽一句＋即時文字", desc:"en-US，不連續，有即時文字", lang:"en-US", cont:false, interim:true},
+  {id:"d",    name:"D. 英式", desc:"en-GB，只聽一句", lang:"en-GB", cont:false, interim:false},
+  {id:"e",    name:"E. 不指定語言", desc:"不設 lang，只聽一句（可以說中文或英文）", lang:null, cont:false, interim:false},
+  {id:"f",    name:"F. 中文", desc:"zh-TW，只聽一句，請說「你好」", lang:"zh-TW", cont:false, interim:false},
+  {id:"g",    name:"G. 先開錄音再辨識", desc:"先 getUserMedia 再 start（正式網頁勾「保存錄音」時的做法）", lang:"en-US", cont:false, interim:false, mediaFirst:true},
+  {id:"h",    name:"H. 延遲 0.5 秒才啟動", desc:"測試是否一定要在點擊當下啟動", lang:"en-US", cont:false, interim:false, delay:500}
+];
+const results = {};
+$("tests").innerHTML = TESTS.map(t => `
+  <div class="card test" id="t-${t.id}">
+    <div class="top"><div><div class="name">${t.name}</div><div class="desc">${t.desc}</div></div><button class="go" data-id="${t.id}">開始</button></div>
+    <div class="status" id="s-${t.id}">尚未測試</div>
+    <div class="log" id="l-${t.id}"></div>
+  </div>`).join("");
+
+let current = null; // {t, rec, stream}
+function setStatus(t, cls, text){ const s=$("s-"+t.id); s.className = "status"+(cls?" "+cls:""); s.textContent = text; results[t.id] = results[t.id] || {}; results[t.id].status = text; }
+function log(t, msg){
+  const ms = ((performance.now() - (t._t0||0))/1000).toFixed(2);
+  const line = `[${ms}s] ${msg}`;
+  $("l-"+t.id).textContent += line + "\n";
+  results[t.id] = results[t.id] || {}; (results[t.id].log = results[t.id].log || []).push(line);
+}
+function btn(t){ return document.querySelector(`.go[data-id="${t.id}"]`); }
+function stopCurrent(){
+  if(!current) return;
+  const {t, rec, stream} = current;
+  try{ rec && rec.abort(); }catch(e){}
+  if(stream) stream.getTracks().forEach(x => x.stop());
+  btn(t).classList.remove("live"); btn(t).textContent = "開始";
+  current = null;
+}
+
+document.querySelectorAll(".go").forEach(b => b.addEventListener("click", () => {
+  const t = TESTS.find(x => x.id === b.dataset.id);
+  if(current && current.t === t){ // 第二次按＝停止
+    log(t, "使用者按停止 → stop()");
+    try{ current.rec && current.rec.stop(); }catch(e){ log(t, "stop() 例外：" + e.message); }
+    return;
+  }
+  stopCurrent();
+  $("l-"+t.id).textContent = ""; results[t.id] = {};
+  t._t0 = performance.now();
+  if(t.mic) return runMic(t);
+  if(!SR){ setStatus(t, "err", "失敗：沒有 SpeechRecognition"); return; }
+  if(t.mediaFirst) return runMediaFirst(t);
+  if(t.delay){ setStatus(t, "", "等待 " + t.delay + "ms…"); setTimeout(() => runSR(t), t.delay); return; }
+  runSR(t); // 同步在點擊當下啟動
+}));
+
+function runMic(t){
+  if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){ setStatus(t, "err", "失敗：沒有 getUserMedia"); return; }
+  setStatus(t, "", "要求麥克風中…");
+  navigator.mediaDevices.getUserMedia({audio:true}).then(stream => {
+    log(t, "getUserMedia 成功，音軌：" + stream.getAudioTracks().map(x => x.label || "(無名稱)").join(", "));
+    setStatus(t, "", "錄音中 2 秒…");
+    setTimeout(() => { stream.getTracks().forEach(x => x.stop()); log(t, "已停止麥克風"); setStatus(t, "ok", "成功：麥克風可以用"); }, 2000);
+  }).catch(e => { log(t, "getUserMedia 失敗：" + e.name + " " + e.message); setStatus(t, "err", "失敗：" + e.name); });
+}
+
+function runMediaFirst(t){
+  setStatus(t, "", "先開麥克風…");
+  navigator.mediaDevices.getUserMedia({audio:true}).then(stream => {
+    log(t, "getUserMedia 成功");
+    runSR(t, stream);
+  }).catch(e => { log(t, "getUserMedia 失敗：" + e.name); setStatus(t, "err", "失敗：麥克風 " + e.name); });
+}
+
+function runSR(t, stream){
+  let rec, gotResult = false, lastErr = null, finals = [], interim = "";
+  try{
+    rec = new SR();
+    if(t.lang) rec.lang = t.lang;
+    rec.continuous = t.cont; rec.interimResults = t.interim; rec.maxAlternatives = 1;
+  }catch(e){ log(t, "建立 SR 例外：" + e.message); setStatus(t, "err", "失敗：無法建立"); return; }
+  current = {t, rec, stream};
+  ["start","audiostart","soundstart","speechstart","speechend","soundend","audioend","nomatch"].forEach(ev => rec.addEventListener(ev, () => log(t, "事件 " + ev)));
+  rec.onresult = e => {
+    interim = "";
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const r = e.results[i];
+      if(r.isFinal){ finals.push(r[0].transcript); log(t, `結果(final) "${r[0].transcript}" 信心 ${r[0].confidence}`); }
+      else { interim += r[0].transcript; }
+    }
+    if(interim) log(t, `即時 "${interim}"`);
+    gotResult = true;
+    setStatus(t, "", "聽到：" + (finals.join(" ") + " " + interim).trim());
+  };
+  rec.onerror = e => { lastErr = e.error; log(t, "錯誤 " + e.error + (e.message ? "：" + e.message : "")); };
+  rec.onend = () => {
+    log(t, "事件 end");
+    if(stream) stream.getTracks().forEach(x => x.stop());
+    const text = (finals.join(" ") + " " + interim).trim();
+    if(lastErr) setStatus(t, "err", "失敗：" + lastErr + (text ? "（但有聽到：" + text + "）" : ""));
+    else if(text) setStatus(t, "ok", "成功：" + text + (finals.length ? "" : "（只有即時文字，沒有 final）"));
+    else setStatus(t, "err", "沒有錯誤，但什麼都沒聽到");
+    btn(t).classList.remove("live"); btn(t).textContent = "開始";
+    if(current && current.rec === rec) current = null;
+  };
+  try{
+    rec.start();
+    log(t, "start() 呼叫成功");
+    setStatus(t, "", t.cont ? "正在聽…說完按「停止」" : "正在聽…請說話");
+    btn(t).classList.add("live"); btn(t).textContent = "停止";
+  }catch(e){
+    log(t, "start() 例外：" + e.name + " " + e.message);
+    setStatus(t, "err", "失敗：start() " + e.name);
+    if(stream) stream.getTracks().forEach(x => x.stop());
+    current = null;
+  }
+}
+
+/* ---------- 複製結果 ---------- */
+$("copy").addEventListener("click", async () => {
+  const lines = ["語音辨識測試結果", ""];
+  Object.entries(env).forEach(([k,v]) => lines.push(`${k}：${v}`));
+  lines.push("");
+  TESTS.forEach(t => {
+    const r = results[t.id];
+    lines.push(`${t.name}：${r && r.status ? r.status : "未測"}`);
+    if(r && r.log) r.log.forEach(l => lines.push("    " + l));
+  });
+  const text = lines.join("\n");
+  try{ await navigator.clipboard.writeText(text); $("copy").textContent = "已複製"; }
+  catch(e){ const ta=$("clip"); ta.value=text; ta.select(); try{ document.execCommand("copy"); $("copy").textContent = "已複製"; }catch(_){ $("copy").textContent = "複製失敗"; } }
+  setTimeout(() => $("copy").textContent = "複製全部結果", 1800);
+});
+</script>
+</body>
+</html>
