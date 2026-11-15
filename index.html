@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emily 的跟讀練習室</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#1F3A5F; --navy-2:#2E5585; --navy-soft:#E8EEF6;
+    --orange:#F28C38; --orange-soft:#FDEBDB;
+    --green:#2E9E6B; --green-soft:#E1F4EB;
+    --red:#D9534F; --red-soft:#FBE4E3;
+    --ink:#1E2633; --muted:#6B7686; --line:#E3E8EF; --bg:#F6F8FB; --card:#FFFFFF;
+    --r:16px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Nunito","Noto Sans TC",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:720px;margin:0 auto;padding:20px 16px 80px}
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:16px}
+  h1{font-size:22px;margin:0;color:var(--navy);font-weight:800;letter-spacing:.2px}
+  .sub{font-size:13px;color:var(--muted);margin-top:2px}
+  .stats{display:flex;gap:8px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px 10px;text-align:center;min-width:64px}
+  .stat b{display:block;font-size:17px;color:var(--navy)}
+  .stat span{font-size:11px;color:var(--muted);white-space:nowrap}
+  .banner{background:var(--orange-soft);color:#8A4A12;border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:14px;display:none;line-height:1.6}
+  .modes{display:flex;background:var(--navy-soft);border-radius:999px;padding:4px;margin-bottom:14px}
+  .modes button{flex:1;border:0;background:transparent;padding:9px 0;border-radius:999px;font:inherit;font-weight:700;color:var(--navy-2);cursor:pointer;transition:.2s}
+  .modes button.on{background:var(--navy);color:#fff;box-shadow:0 2px 6px rgba(31,58,95,.25)}
+  .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:12px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex:none;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:7px 13px;border-radius:999px;font:inherit;font-size:13px;cursor:pointer;transition:.15s}
+  .chip.on{border-color:var(--navy);background:var(--navy);color:#fff}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:12px}
+  .meta{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:10px}
+  .target{font-size:21px;line-height:1.5;font-weight:700;color:var(--navy);margin:0 0 6px}
+  .zh{font-size:14px;color:var(--muted);margin:0}
+  .settings{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:13px;color:var(--muted);margin:14px 0 4px}
+  select,textarea{font:inherit;border:1px solid var(--line);border-radius:10px;padding:6px 8px;background:#fff;color:var(--ink)}
+  label.tog{display:flex;align-items:center;gap:6px;cursor:pointer}
+  .controls{display:flex;align-items:center;justify-content:center;gap:18px;margin:18px 0 6px}
+  .btn{border:0;font:inherit;font-weight:700;cursor:pointer;border-radius:999px;display:inline-flex;align-items:center;gap:6px;justify-content:center;transition:transform .12s, background .2s}
+  .btn:active{transform:scale(.95)}
+  .btn.ghost{background:var(--navy-soft);color:var(--navy);padding:10px 14px;font-size:14px}
+  .btn.ghost:disabled{opacity:.4;cursor:default}
+  .rec{width:76px;height:76px;background:var(--orange);color:#fff;box-shadow:0 6px 16px rgba(242,140,56,.35)}
+  .rec.live{background:var(--red);animation:pulse 1.2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(217,83,79,.45)}70%{box-shadow:0 0 0 16px rgba(217,83,79,0)}100%{box-shadow:0 0 0 0 rgba(217,83,79,0)}}
+  .hint{text-align:center;font-size:12px;color:var(--muted);min-height:18px}
+  .interim{text-align:center;font-size:14px;color:var(--navy-2);min-height:20px;margin-top:4px;font-style:italic}
+  .result{display:none}
+  .score{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .ring{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:16px;color:var(--navy);background:conic-gradient(var(--green) calc(var(--p)*1%), var(--navy-soft) 0)}
+  .ring i{font-style:normal;width:46px;height:46px;border-radius:50%;background:#fff;display:grid;place-items:center}
+  .score p{margin:0;font-size:14px;line-height:1.5}
+  .words{font-size:18px;line-height:2.1;margin-bottom:8px}
+  .w{padding:2px 6px;border-radius:8px;margin-right:3px;display:inline-block;line-height:1.4}
+  .w.ok{background:var(--green-soft);color:#1D6B48}
+  .w.miss{background:var(--red-soft);color:var(--red);text-decoration:underline wavy;text-underline-offset:4px;cursor:pointer}
+  .w.sub{background:var(--orange-soft);color:#A45A16;cursor:pointer}
+  .w.sub small{display:block;font-size:11px;color:var(--muted);line-height:1.1}
+  .w.ins{color:var(--muted);font-size:13px;background:transparent;border:1px dashed var(--line)}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:10px}
+  .legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+  .lg-ok::before{background:var(--green-soft);border:1px solid var(--green)}
+  .lg-sub::before{background:var(--orange-soft);border:1px solid var(--orange)}
+  .lg-miss::before{background:var(--red-soft);border:1px solid var(--red)}
+  .heard{font-size:13px;color:var(--muted);background:var(--bg);border-radius:10px;padding:8px 10px;margin-bottom:12px}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .nav{display:flex;justify-content:space-between;gap:8px}
+  .primary{background:var(--navy);color:#fff;padding:11px 16px;font-size:14px}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:9}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .weak-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
+  .weak-item:last-child{border-bottom:0}
+  .weak-item b{font-size:17px;color:var(--navy)}
+  .count{font-size:12px;color:var(--red);background:var(--red-soft);padding:2px 8px;border-radius:999px}
+  .empty{color:var(--muted);font-size:14px;text-align:center;padding:20px 0}
+  textarea{width:100%;min-height:120px;resize:vertical;line-height:1.6}
+  .free-text{font-size:16px;line-height:1.7;min-height:60px;white-space:pre-wrap}
+  .section-title{font-size:15px;font-weight:800;color:var(--navy);margin:0 0 8px}
+  .small{font-size:12px;color:var(--muted);line-height:1.6}
+  .hidden{display:none!important}
+  svg{width:20px;height:20px}
+  .rec svg{width:30px;height:30px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>跟讀練習室</h1>
+      <div class="sub">Emily's Speaking Lab · 聽 → 說 → 看哪裡沒被聽懂</div>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="stToday">0</b><span>今天練習</span></div>
+      <div class="stat"><b id="stAvg">–</b><span>今日平均</span></div>
+    </div>
+  </header>
+
+  <div class="banner" id="banner"></div>
+
+  <div class="modes">
+    <button data-mode="shadow" class="on">跟讀</button>
+    <button data-mode="free">自由說</button>
+    <button data-mode="weak">常錯字</button>
+  </div>
+
+  <!-- ========== 跟讀 ========== -->
+  <section id="m-shadow">
+    <div class="chips" id="cats"></div>
+
+    <div class="card hidden" id="customEditor">
+      <p class="section-title">我的句子</p>
+      <p class="small">一行一句。想加中文意思，用「｜」隔開，例如：<br>Could you send me the quote?｜可以寄報價單給我嗎？</p>
+      <textarea id="customText" placeholder="Paste your sentences here..."></textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="saveCustom">儲存並開始練習</button>
+      </div>
+    </div>
+
+    <div class="card" id="practiceCard">
+      <div class="meta"><span id="catName"></span><span id="pos"></span></div>
+      <p class="target" id="target"></p>
+      <p class="zh" id="zh"></p>
+
+      <div class="settings">
+        <label>示範語速
+          <select id="rate"><option value="0.7">慢</option><option value="0.85" selected>中</option><option value="1">正常</option></select>
+        </label>
+        <label>口音
+          <select id="accent"><option value="en-US">美式</option><option value="en-GB">英式</option></select>
+        </label>
+        <label class="tog"><input type="checkbox" id="keepAudio" checked>保存我的錄音</label>
+      </div>
+
+      <div class="controls">
+        <button class="btn ghost" id="playModel" title="聽示範">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>示範
+        </button>
+        <button class="btn rec" id="recBtn" title="開始／停止錄音">
+          <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v5"/></svg>
+        </button>
+        <button class="btn ghost" id="playMine" disabled title="聽我的錄音">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg>我的
+        </button>
+      </div>
+      <div class="hint" id="hint">先聽示範，再按橘色按鈕跟著唸，唸完再按一次</div>
+      <div class="interim" id="interim"></div>
+    </div>
+
+    <div class="card result" id="result">
+      <div class="score">
+        <div class="ring" id="ring" style="--p:0"><i id="scoreNum">0%</i></div>
+        <p id="scoreText"></p>
+      </div>
+      <div class="legend"><span class="lg-ok">聽懂</span><span class="lg-sub">聽成別的字</span><span class="lg-miss">沒聽到</span></div>
+      <div class="words" id="words"></div>
+      <div class="heard" id="heard"></div>
+      <p class="small" style="margin:0 0 12px">點紅色或橘色的字可以單獨聽發音。辨識系統會依上下文自動猜字，所以「被聽懂」不代表發音完美，但「沒被聽懂」通常就是要加強的地方。</p>
+      <div class="row">
+        <button class="btn ghost" id="retry">再唸一次</button>
+        <button class="btn primary" id="copyShadow">複製結果給 Claude 分析</button>
+      </div>
+    </div>
+
+    <div class="nav">
+      <button class="btn ghost" id="prev">上一句</button>
+      <button class="btn ghost" id="rand">隨機</button>
+      <button class="btn ghost" id="next">下一句</button>
+    </div>
+  </section>
+
+  <!-- ========== 自由說 ========== -->
+  <section id="m-free" class="hidden">
+    <div class="card">
+      <div class="meta"><span>題目</span><button class="btn ghost" id="newTopic" style="padding:6px 12px;font-size:12px">換一題</button></div>
+      <p class="target" id="topic"></p>
+      <p class="zh" id="topicZh"></p>
+      <div class="controls">
+        <button class="btn rec" id="freeRec" title="開始／停止錄音">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v5"/></svg>
+        </button>
+        <button class="btn ghost" id="freeMine" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg>我的
+        </button>
+      </div>
+      <div class="hint" id="freeHint">試著講 30–60 秒，講完按一次停止</div>
+    </div>
+    <div class="card">
+      <p class="section-title">辨識出來的逐字稿</p>
+      <div class="free-text" id="freeText"><span class="small">錄音後會出現在這裡</span></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary" id="copyFree">複製逐字稿給 Claude 批改</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 常錯字 ========== -->
+  <section id="m-weak" class="hidden">
+    <div class="card">
+      <p class="section-title">最常沒被聽懂的字</p>
+      <p class="small">從你所有的跟讀紀錄累積。點「聽」可以單獨聽發音，練到順再回去唸整句。</p>
+      <div id="weakList"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary" id="copyWeak">複製常錯字給 Claude 分析</button>
+        <button class="btn ghost" id="clearWeak">清除紀錄</button>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+<textarea id="clipFallback" style="position:fixed;left:-9999px;top:0"></textarea>
+
+<script>
+/* ---------- 句庫 ---------- */
+const DECKS = [
+  {id:"intro", name:"自我介紹", items:[
+    ["Hi, I'm Emily. I work in medical information services in Taiwan.","嗨，我是 Emily，在台灣做醫學資訊服務。"],
+    ["I help hospitals and universities choose the right medical databases.","我協助醫院和大學選擇合適的醫學資料庫。"],
+    ["I studied information and communication for six years.","我讀了六年的資訊傳播。"],
+    ["I enjoy turning complex information into clear solutions.","我喜歡把複雜的資訊變成清楚的解決方案。"],
+    ["I'm looking for a role where I can build processes and work across teams.","我在找能建立流程、跨團隊合作的職位。"],
+    ["In my free time, I dance and read self-development books.","空閒時我會跳舞、讀自我成長的書。"]
+  ]},
+  {id:"interview", name:"面試關鍵句", items:[
+    ["I took responsibility and told my manager right away.","我立刻承擔責任並告知主管。"],
+    ["Instead of simply giving a discount, I turned it into an upsell opportunity.","我沒有直接讓利，而是把它變成加購機會。"],
+    ["I always confirm verbal agreements in writing on the same day.","口頭協議我都會當天書面確認。"],
+    ["It was a win-win. The client saved money, and we secured three years of revenue.","這是雙贏：客戶省錢，我們鎖住三年營收。"],
+    ["I prepared two options side by side, so the client could compare them easily.","我準備兩案並列，讓客戶容易比較。"],
+    ["I focused on value, not just price.","我談價值，而不只是價格。"],
+    ["I rebuilt the timeline from old emails and meeting notes.","我從舊信件和會議紀錄重建時間軸。"],
+    ["I turned a manual task into a repeatable workflow.","我把手工任務變成可重複的流程。"],
+    ["A clear scope protects both sides.","清楚的範圍保護雙方。"],
+    ["Looking back, I learned that written alignment prevents confusion.","回頭看，我學到書面對齊能避免誤會。"]
+  ]},
+  {id:"publisher", name:"工作：原廠會議", items:[
+    ["Thank you for joining the call today.","謝謝你今天參加會議。"],
+    ["Could you share the pricing for next year?","可以分享明年的價格嗎？"],
+    ["The client's budget is already fixed for this year.","客戶今年的預算已經定了。"],
+    ["Is it possible to offer a multi-year discount?","有可能提供多年約折扣嗎？"],
+    ["Let me check with my manager and get back to you by Friday.","我跟主管確認後，週五前回覆你。"],
+    ["Could you send me the details by email?","可以用 email 寄細節給我嗎？"],
+    ["Just to confirm, the new price includes full backfile access, right?","確認一下，新價格包含完整回溯檔對吧？"]
+  ]},
+  {id:"training", name:"工作：產品介紹", items:[
+    ["Today I'll show you how to find clinical videos in three steps.","今天我會示範三步驟找到臨床影片。"],
+    ["You can search by keyword or browse by subject.","你可以用關鍵字搜尋或依主題瀏覽。"],
+    ["This database is updated every month.","這個資料庫每個月更新。"],
+    ["Feel free to ask questions at any time.","隨時都可以發問。"],
+    ["Let's try it together on your screen.","我們一起在你的螢幕上試試看。"],
+    ["Please scan the QR code to fill out a short survey.","請掃 QR code 填寫簡短問卷。"]
+  ]},
+  {id:"client", name:"工作：客戶溝通", items:[
+    ["I understand your concern about the price increase.","我理解您對漲價的顧慮。"],
+    ["Here are two options for your renewal.","這是您續約的兩個方案。"],
+    ["I'll send you the formal quote this afternoon.","我今天下午會寄正式報價單給您。"],
+    ["The usage of this journal grew a lot this year.","這本期刊今年的使用量成長很多。"],
+    ["Would it help if I prepared a usage report for your meeting?","我幫您準備一份使用報告給會議用，會有幫助嗎？"]
+  ]},
+  {id:"dance", name:"閒聊：舞蹈", items:[
+    ["I've been dancing since I was four years old.","我從四歲就開始跳舞。"],
+    ["Now I take K-pop dance classes every week.","現在我每週上 K-pop 舞蹈課。"],
+    ["My favorite group is Stray Kids.","我最喜歡的團是 Stray Kids。"],
+    ["Dancing helps me clear my mind after work.","跳舞能幫我下班後放空。"],
+    ["Learning a new routine is hard, but it's really fun.","學新舞很難，但真的很好玩。"]
+  ]},
+  {id:"life", name:"閒聊：生活", items:[
+    ["I really like Japandi style. It's calm and simple.","我很喜歡 Japandi 風格，安靜又簡單。"],
+    ["I prefer natural wood and soft colors.","我比較喜歡原木和柔和的顏色。"],
+    ["What do you usually do on weekends?","你週末通常做什麼？"],
+    ["Do you have any recommendations for a good cafe?","你有推薦的咖啡廳嗎？"],
+    ["That sounds great. How did you get into it?","聽起來很棒，你是怎麼開始的？"]
+  ]},
+  {id:"growth", name:"閒聊：閱讀成長", items:[
+    ["I'm reading a book about building better habits.","我正在讀一本關於建立好習慣的書。"],
+    ["One idea that changed me is to begin with the end in mind.","改變我的一個觀念是以終為始。"],
+    ["I like to design my own productivity systems.","我喜歡設計自己的生產力系統。"],
+    ["I enjoy a career podcast that talks about workplace skills.","我喜歡一個談職場技能的 podcast。"],
+    ["What's the best book you've read this year?","你今年讀過最好的書是哪本？"]
+  ]},
+  {id:"custom", name:"＋ 我的句子", items:[]}
+];
+
+const TOPICS = [
+  ["Tell me about your job.","介紹你的工作。"],
+  ["Describe a challenge you faced at work this week.","描述這週工作上遇到的一個挑戰。"],
+  ["What did you do last weekend?","你上週末做了什麼？"],
+  ["Why do you want to work at a multinational company?","你為什麼想到外商工作？"],
+  ["What is your biggest strength? Give an example.","你最大的優點是什麼？舉個例子。"],
+  ["Tell me about a book or podcast you like.","聊聊一本你喜歡的書或 podcast。"],
+  ["Describe your ideal home.","描述你理想中的家。"],
+  ["How do you handle stress?","你怎麼處理壓力？"],
+  ["Introduce one product you sell to a new client.","向新客戶介紹一個你賣的產品。"],
+  ["Tell me about your dance classes.","聊聊你的舞蹈課。"]
+];
+
+/* ---------- 儲存（localStorage 可能不可用） ---------- */
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem("spk_"+k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem("spk_"+k, JSON.stringify(v)); }catch(e){} }
+};
+
+/* ---------- 文字正規化與比對 ---------- */
+const CONTRACTIONS = {"i'm":"i am","it's":"it is","i'll":"i will","let's":"let us","i've":"i have","we're":"we are","you're":"you are","they're":"they are","don't":"do not","doesn't":"does not","didn't":"did not","can't":"cannot","won't":"will not","isn't":"is not","aren't":"are not","what's":"what is","that's":"that is","there's":"there is","i'd":"i would","we'll":"we will","you'll":"you will","he's":"he is","she's":"she is","we've":"we have","you've":"you have","wasn't":"was not","couldn't":"could not","wouldn't":"would not","shouldn't":"should not","how's":"how is","here's":"here is","client's":"client s"};
+const ONES = ["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"];
+const TENS = ["","","twenty","thirty","forty","fifty","sixty","seventy","eighty","ninety"];
+function numToWords(n){
+  if(n<20) return ONES[n];
+  if(n<100) return TENS[Math.floor(n/10)] + (n%10 ? " "+ONES[n%10] : "");
+  if(n<1000) return ONES[Math.floor(n/100)]+" hundred"+(n%100 ? " "+numToWords(n%100) : "");
+  return String(n);
+}
+function normalize(text){
+  let t = (text||"").toLowerCase().replace(/[’‘`]/g,"'").replace(/%/g," percent ").replace(/[-–—\/]/g," ");
+  t = t.replace(/[^a-z0-9' ]+/g," ");
+  let tokens = t.split(/\s+/).filter(Boolean);
+  const out = [];
+  for(let tok of tokens){
+    tok = tok.replace(/^'+|'+$/g,"");
+    if(!tok) continue;
+    if(CONTRACTIONS[tok]){ out.push(...CONTRACTIONS[tok].split(" ")); continue; }
+    if(/^\d+$/.test(tok) && +tok < 1000){ out.push(...numToWords(+tok).split(" ")); continue; }
+    if(/'s$/.test(tok)){ out.push(tok.slice(0,-2), "s"); continue; }
+    out.push(tok.replace(/'/g,""));
+  }
+  return out;
+}
+/* 顯示用：把原句切成字，並記錄每個顯示字對應幾個正規化 token */
+function displayUnits(text){
+  return text.split(/\s+/).filter(Boolean).map(raw => ({raw, norm: normalize(raw)})).filter(u => u.norm.length);
+}
+function align(a, b){
+  const n=a.length, m=b.length;
+  const dp = Array.from({length:n+1}, () => new Array(m+1).fill(0));
+  for(let i=0;i<=n;i++) dp[i][0]=i;
+  for(let j=0;j<=m;j++) dp[0][j]=j;
+  for(let i=1;i<=n;i++) for(let j=1;j<=m;j++){
+    const c = a[i-1]===b[j-1] ? 0 : 1;
+    dp[i][j] = Math.min(dp[i-1][j-1]+c, dp[i-1][j]+1, dp[i][j-1]+1);
+  }
+  const ops=[]; let i=n, j=m;
+  while(i>0 || j>0){
+    if(i>0 && j>0 && dp[i][j] === dp[i-1][j-1] + (a[i-1]===b[j-1]?0:1)){
+      ops.push({type: a[i-1]===b[j-1] ? "ok" : "sub", t:a[i-1], h:b[j-1], ti:i-1}); i--; j--;
+    } else if(i>0 && dp[i][j] === dp[i-1][j]+1){
+      ops.push({type:"miss", t:a[i-1], ti:i-1}); i--;
+    } else {
+      ops.push({type:"ins", h:b[j-1], ti:i-1}); j--;
+    }
+  }
+  return ops.reverse();
+}
+
+/* ---------- 狀態 ---------- */
+let deckIdx = store.get("deck", 0), itemIdx = store.get("item", 0);
+let customItems = store.get("custom", []);
+DECKS.find(d=>d.id==="custom").items = customItems;
+let mode = "shadow";
+let lastAttempt = null;
+let topicIdx = Math.floor(Math.random()*TOPICS.length);
+let freeLast = {topic:"", text:""};
+
+const $ = id => document.getElementById(id);
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+/* ---------- 支援度檢查 ---------- */
+(function checkSupport(){
+  const msgs = [];
+  if(!SR) msgs.push("這個瀏覽器不支援語音辨識。請用電腦或 Android 的 Chrome，或 iPhone 的 Safari 開啟。");
+  if(location.protocol === "http:" && location.hostname !== "localhost") msgs.push("麥克風需要 https 網址（例如 GitHub Pages）才能使用。");
+  if(!window.speechSynthesis) msgs.push("這個瀏覽器無法播放示範發音。");
+  if(msgs.length){ $("banner").innerHTML = msgs.join("<br>"); $("banner").style.display="block"; }
+})();
+
+/* ---------- 工具 ---------- */
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),1800); }
+async function copyText(text){
+  try{ await navigator.clipboard.writeText(text); toast("已複製，貼到口說專案就好"); return; }catch(e){}
+  const ta=$("clipFallback"); ta.value=text; ta.select();
+  try{ document.execCommand("copy"); toast("已複製，貼到口說專案就好"); }catch(e){ toast("複製失敗，請手動選取"); }
+}
+let voices = [];
+function loadVoices(){ try{ voices = speechSynthesis.getVoices(); }catch(e){ voices=[]; } }
+if(window.speechSynthesis){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+function pickVoice(lang){
+  const list = voices.filter(v => v.lang && v.lang.replace("_","-").startsWith(lang));
+  const pref = ["Samantha","Google US English","Microsoft Aria","Daniel","Google UK English Female","Serena"];
+  for(const p of pref){ const v = list.find(x => x.name.includes(p)); if(v) return v; }
+  return list[0] || null;
+}
+function speak(text, rate){
+  if(!window.speechSynthesis) return;
+  try{
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    const lang = $("accent").value;
+    u.lang = lang; u.rate = rate || parseFloat($("rate").value);
+    const v = pickVoice(lang); if(v) u.voice = v;
+    speechSynthesis.speak(u);
+  }catch(e){ toast("無法播放示範"); }
+}
+
+/* ---------- 錄音 + 辨識 ---------- */
+function createSession({onInterim, onDone, onState}){
+  let rec=null, mediaRec=null, stream=null, chunks=[], finals=[], active=false, audioUrl=null, stopping=false;
+  async function start(){
+    if(!SR){ toast("此瀏覽器不支援語音辨識"); return; }
+    finals=[]; chunks=[]; stopping=false;
+    if($("keepAudio").checked && navigator.mediaDevices && window.MediaRecorder){
+      try{
+        stream = await navigator.mediaDevices.getUserMedia({audio:true});
+        mediaRec = new MediaRecorder(stream);
+        mediaRec.ondataavailable = e => { if(e.data.size) chunks.push(e.data); };
+        mediaRec.onstop = () => {
+          if(chunks.length){ if(audioUrl) URL.revokeObjectURL(audioUrl); audioUrl = URL.createObjectURL(new Blob(chunks, {type: chunks[0].type || "audio/webm"})); }
+          if(stream) stream.getTracks().forEach(t=>t.stop());
+          onState("audio", audioUrl);
+        };
+        mediaRec.start();
+      }catch(e){ mediaRec=null; stream=null; }
+    }
+    rec = new SR();
+    rec.lang = $("accent") ? $("accent").value : "en-US";
+    rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
+    rec.onresult = e => {
+      let interim = "";
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const r = e.results[i];
+        if(r.isFinal) finals.push({text:r[0].transcript, conf:r[0].confidence});
+        else interim += r[0].transcript;
+      }
+      onInterim(finals.map(f=>f.text).join(" ") + " " + interim);
+    };
+    rec.onerror = e => {
+      const map = {"not-allowed":"麥克風權限被拒絕，請到瀏覽器設定允許","no-speech":"沒有偵測到聲音，再試一次","audio-capture":"抓不到麥克風；可以試著關掉「保存我的錄音」","network":"辨識需要網路連線"};
+      toast(map[e.error] || ("辨識錯誤：" + e.error));
+    };
+    rec.onend = () => { finish(); };
+    try{ rec.start(); active=true; onState("live"); }catch(e){ toast("無法開始辨識"); cleanup(); }
+  }
+  function stop(){ if(!active) return; stopping=true; try{ rec.stop(); }catch(e){ finish(); } }
+  function cleanup(){ active=false; if(mediaRec && mediaRec.state!=="inactive"){ try{ mediaRec.stop(); }catch(e){} } else if(stream){ stream.getTracks().forEach(t=>t.stop()); } }
+  function finish(){
+    if(!active) return;
+    cleanup();
+    onState("idle");
+    const text = finals.map(f=>f.text).join(" ").trim();
+    const confs = finals.map(f=>f.conf).filter(c=>typeof c==="number" && c>0);
+    onDone(text, confs.length ? confs.reduce((a,b)=>a+b,0)/confs.length : null);
+  }
+  return { start, stop, get active(){ return active; }, get audio(){ return audioUrl; } };
+}
+
+/* ---------- 跟讀模式 ---------- */
+function deck(){ return DECKS[deckIdx] || DECKS[0]; }
+function renderCats(){
+  $("cats").innerHTML = DECKS.map((d,i)=>`<button class="chip ${i===deckIdx?"on":""}" data-i="${i}">${esc(d.name)}</button>`).join("");
+  $("cats").querySelectorAll(".chip").forEach(b => b.onclick = () => { deckIdx=+b.dataset.i; itemIdx=0; store.set("deck",deckIdx); store.set("item",0); renderCats(); renderItem(); });
+}
+function renderItem(){
+  const d = deck();
+  const isCustom = d.id==="custom";
+  $("customEditor").classList.toggle("hidden", !(isCustom && (d.items.length===0 || showEditor)));
+  if(isCustom) $("customText").value = customItems.map(x => x[1] ? x[0]+"｜"+x[1] : x[0]).join("\n");
+  const has = d.items.length>0;
+  $("practiceCard").classList.toggle("hidden", !has);
+  document.querySelector(".nav").classList.toggle("hidden", !has);
+  $("result").style.display = "none";
+  $("playMine").disabled = true;
+  $("interim").textContent = "";
+  if(!has) return;
+  if(itemIdx >= d.items.length) itemIdx = 0;
+  const [en, zh] = d.items[itemIdx];
+  $("catName").innerHTML = esc(d.name) + (isCustom ? ' · <a href="#" id="editCustom" style="color:var(--navy-2)">編輯</a>' : "");
+  $("pos").textContent = (itemIdx+1) + " / " + d.items.length;
+  $("target").textContent = en;
+  $("zh").textContent = zh || "";
+  if(isCustom){ const ec=$("editCustom"); if(ec) ec.onclick = e => { e.preventDefault(); showEditor=true; renderItem(); }; }
+}
+let showEditor = false;
+$("saveCustom").onclick = () => {
+  customItems = $("customText").value.split("\n").map(l=>l.trim()).filter(Boolean).map(l => { const [en, zh] = l.split(/[｜|]/); return [en.trim(), (zh||"").trim()]; }).filter(x=>x[0]);
+  DECKS.find(d=>d.id==="custom").items = customItems;
+  store.set("custom", customItems);
+  showEditor=false; itemIdx=0; renderItem();
+  toast(customItems.length ? "已儲存 "+customItems.length+" 句" : "目前沒有句子");
+};
+$("prev").onclick = () => { const n=deck().items.length; itemIdx=(itemIdx-1+n)%n; store.set("item",itemIdx); renderItem(); };
+$("next").onclick = () => { const n=deck().items.length; itemIdx=(itemIdx+1)%n; store.set("item",itemIdx); renderItem(); };
+$("rand").onclick = () => { const n=deck().items.length; if(n<2) return; let k; do{ k=Math.floor(Math.random()*n); }while(k===itemIdx); itemIdx=k; renderItem(); };
+$("playModel").onclick = () => speak($("target").textContent);
+$("retry").onclick = () => { $("result").style.display="none"; $("interim").textContent=""; $("recBtn").scrollIntoView({behavior:"smooth", block:"center"}); };
+
+const shadowSession = createSession({
+  onInterim: t => { $("interim").textContent = t.trim(); },
+  onState: (s, url) => {
+    if(s==="live"){ $("recBtn").classList.add("live"); $("hint").textContent="正在聽…唸完再按一次停止"; }
+    if(s==="idle"){ $("recBtn").classList.remove("live"); $("hint").textContent="先聽示範，再按橘色按鈕跟著唸，唸完再按一次"; }
+    if(s==="audio" && url){ $("playMine").disabled=false; }
+  },
+  onDone: (heard, conf) => {
+    if(!heard){ toast("沒有辨識到內容，再試一次"); return; }
+    showResult($("target").textContent, heard, conf);
+  }
+});
+$("recBtn").onclick = () => { if(window.speechSynthesis) speechSynthesis.cancel(); shadowSession.active ? shadowSession.stop() : shadowSession.start(); };
+$("playMine").onclick = () => { const u=shadowSession.audio; if(u){ const a=new Audio(u); a.play().catch(()=>toast("無法播放錄音")); } };
+
+function showResult(target, heard, conf){
+  const units = displayUnits(target);
+  const tTok = []; const owner = [];
+  units.forEach((u,ui) => u.norm.forEach(tk => { tTok.push(tk); owner.push(ui); }));
+  const hTok = normalize(heard);
+  const ops = align(tTok, hTok);
+
+  // 依顯示字彙整狀態
+  const state = units.map(() => ({ok:0, total:0, heardAs:[]}));
+  const inserts = {}; // 插在某顯示字之後
+  ops.forEach(op => {
+    if(op.type==="ins"){ const k = op.ti>=0 ? owner[op.ti] : -1; (inserts[k] = inserts[k]||[]).push(op.h); return; }
+    const s = state[owner[op.ti]]; s.total++;
+    if(op.type==="ok") s.ok++;
+    if(op.type==="sub") s.heardAs.push(op.h);
+  });
+  let okCount=0;
+  const weak = store.get("weak", {});
+  const missed=[], subs=[];
+  let html = (inserts[-1]||[]).map(w=>`<span class="w ins">+${esc(w)}</span>`).join("");
+  units.forEach((u,ui) => {
+    const s = state[ui];
+    const clean = u.raw.replace(/^[^A-Za-z0-9']+|[^A-Za-z0-9']+$/g,"");
+    let cls;
+    if(s.ok===s.total){ cls="ok"; okCount++; }
+    else if(s.heardAs.length){ cls="sub"; subs.push(clean+" → "+s.heardAs.join(" ")); }
+    else { cls="miss"; missed.push(clean); }
+    if(cls!=="ok"){ const key=clean.toLowerCase(); weak[key]=(weak[key]||0)+1; }
+    html += cls==="sub"
+      ? `<span class="w sub" data-say="${esc(clean)}">${esc(u.raw)}<small>聽成 ${esc(s.heardAs.join(" "))}</small></span>`
+      : `<span class="w ${cls}" ${cls==="miss"?`data-say="${esc(clean)}"`:""}>${esc(u.raw)}</span>`;
+    (inserts[ui]||[]).forEach(w => { html += `<span class="w ins">+${esc(w)}</span>`; });
+  });
+  store.set("weak", weak);
+  const score = units.length ? Math.round(okCount/units.length*100) : 0;
+  $("words").innerHTML = html;
+  $("words").querySelectorAll("[data-say]").forEach(el => el.onclick = () => speak(el.dataset.say, 0.7));
+  $("heard").innerHTML = "辨識結果：" + esc(heard) + (conf ? `<br>辨識信心度：${Math.round(conf*100)}%` : "");
+  $("ring").style.setProperty("--p", score);
+  $("scoreNum").textContent = score + "%";
+  $("scoreText").innerHTML = score>=90 ? "<b>很清楚！</b>幾乎每個字都被聽懂了。試試看把語速調成「正常」。"
+    : score>=70 ? "<b>不錯！</b>點一下標色的字單獨聽，再把整句唸一次。"
+    : "<b>先放慢。</b>把標色的字一個一個練順，再接回整句。";
+  $("result").style.display="block";
+  $("result").scrollIntoView({behavior:"smooth", block:"start"});
+
+  lastAttempt = {target, heard, score, missed, subs, deck: deck().name, date: new Date().toISOString()};
+  const hist = store.get("hist", []); hist.unshift(lastAttempt); store.set("hist", hist.slice(0,300));
+  renderStats();
+}
+
+function topWeak(n){ const w=store.get("weak",{}); return Object.entries(w).sort((a,b)=>b[1]-a[1]).slice(0,n); }
+$("copyShadow").onclick = () => {
+  if(!lastAttempt) return;
+  const a = lastAttempt;
+  const tw = topWeak(10).map(([w,c])=>`${w}(${c})`).join(", ");
+  copyText(
+`請根據以下英文跟讀的語音辨識結果，分析我可能的發音問題：
+1) 哪些音最可能沒發好、為什麼容易被聽錯（台灣人常見原因）
+2) 每個問題字給我 1 個發音小技巧
+3) 給我 3 個加強練習的句子
+
+類別：${a.deck}
+目標句：${a.target}
+辨識結果：${a.heard}
+清楚度：${a.score}%
+沒被辨識的字：${a.missed.join(", ") || "無"}
+被聽成別的字：${a.subs.join("; ") || "無"}
+我累積的常錯字（次數）：${tw || "尚無"}`);
+};
+
+/* ---------- 自由說 ---------- */
+function renderTopic(){ const [en,zh]=TOPICS[topicIdx]; $("topic").textContent=en; $("topicZh").textContent=zh; }
+$("newTopic").onclick = () => { topicIdx=(topicIdx+1)%TOPICS.length; renderTopic(); };
+const freeSession = createSession({
+  onInterim: t => { $("freeText").textContent = t.trim(); },
+  onState: (s, url) => {
+    if(s==="live"){ $("freeRec").classList.add("live"); $("freeHint").textContent="正在聽…講完按一次停止"; }
+    if(s==="idle"){ $("freeRec").classList.remove("live"); $("freeHint").textContent="試著講 30–60 秒，講完按一次停止"; }
+    if(s==="audio" && url){ $("freeMine").disabled=false; }
+  },
+  onDone: text => {
+    if(!text){ toast("沒有辨識到內容"); return; }
+    $("freeText").textContent = text;
+    freeLast = {topic: $("topic").textContent, text};
+    const hist = store.get("hist", []); hist.unshift({deck:"自由說", target:freeLast.topic, heard:text, score:null, date:new Date().toISOString()}); store.set("hist", hist.slice(0,300));
+    renderStats();
+  }
+});
+$("freeRec").onclick = () => freeSession.active ? freeSession.stop() : freeSession.start();
+$("freeMine").onclick = () => { const u=freeSession.audio; if(u){ new Audio(u).play().catch(()=>toast("無法播放錄音")); } };
+$("copyFree").onclick = () => {
+  if(!freeLast.text){ toast("先錄一段再複製"); return; }
+  copyText(
+`以下是我英文自由口說的語音辨識逐字稿（辨識可能有誤）。請：
+1) 指出文法與用字錯誤，最多 5 個，格式：You said → Better（附一句中文說明）
+2) 標出看起來像是「發音被誤辨識」的字，猜猜我原本想說什麼
+3) 給我一個更自然、但仍是 B1 程度的版本，讓我跟讀
+
+題目：${freeLast.topic}
+逐字稿：${freeLast.text}`);
+};
+
+/* ---------- 常錯字 ---------- */
+function renderWeak(){
+  const list = topWeak(30);
+  $("weakList").innerHTML = list.length
+    ? list.map(([w,c]) => `<div class="weak-item"><b>${esc(w)}</b><div class="row" style="align-items:center"><span class="count">${c} 次</span><button class="btn ghost" data-say="${esc(w)}" style="padding:6px 12px;font-size:13px">聽</button></div></div>`).join("")
+    : `<div class="empty">還沒有紀錄，先去跟讀幾句吧</div>`;
+  $("weakList").querySelectorAll("[data-say]").forEach(b => b.onclick = () => speak(b.dataset.say, 0.7));
+}
+$("copyWeak").onclick = () => {
+  const tw = topWeak(20);
+  if(!tw.length){ toast("還沒有常錯字"); return; }
+  copyText(
+`以下是我英文跟讀時最常沒被語音辨識聽懂的字（括號是次數）。請：
+1) 幫我歸類背後共同的發音問題（例如子音結尾、th、r/l、母音長短）
+2) 每類給一個練習方法
+3) 設計 5 個包含這些字的短句讓我跟讀
+
+${tw.map(([w,c])=>`${w}(${c})`).join(", ")}`);
+};
+let clearArmed=false;
+$("clearWeak").onclick = () => {
+  if(!clearArmed){ clearArmed=true; $("clearWeak").textContent="再按一次確認清除"; setTimeout(()=>{ clearArmed=false; $("clearWeak").textContent="清除紀錄"; },3000); return; }
+  store.set("weak", {}); clearArmed=false; $("clearWeak").textContent="清除紀錄"; renderWeak(); toast("已清除");
+};
+
+/* ---------- 統計與模式切換 ---------- */
+function renderStats(){
+  const today = new Date().toDateString();
+  const hist = store.get("hist", []).filter(h => new Date(h.date).toDateString()===today);
+  $("stToday").textContent = hist.length;
+  const scored = hist.filter(h => typeof h.score==="number");
+  $("stAvg").textContent = scored.length ? Math.round(scored.reduce((a,h)=>a+h.score,0)/scored.length)+"%" : "–";
+}
+document.querySelectorAll(".modes button").forEach(b => b.onclick = () => {
+  mode = b.dataset.mode;
+  document.querySelectorAll(".modes button").forEach(x => x.classList.toggle("on", x===b));
+  ["shadow","free","weak"].forEach(m => $("m-"+m).classList.toggle("hidden", m!==mode));
+  if(mode==="weak") renderWeak();
+});
+
+renderCats(); renderItem(); renderTopic(); renderStats();
+</script>
+</body>
+</html>
