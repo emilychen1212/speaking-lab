@@ -121,6 +121,15 @@
       </div>
     </div>
 
+    <div class="card hidden" id="sheetBar">
+      <div class="meta" style="align-items:center;margin-bottom:8px">
+        <span id="sheetStatus">同步中…</span>
+        <button class="btn ghost" id="sheetRefresh" style="padding:6px 12px;font-size:12px">重新同步</button>
+      </div>
+      <div class="chips" id="sheetFilters" style="margin-bottom:0"></div>
+      <div class="empty hidden" id="sheetEmpty"></div>
+    </div>
+
     <div class="card" id="practiceCard">
       <div class="meta"><span id="catName"></span><span id="pos"></span></div>
       <p class="target" id="target"></p>
@@ -216,7 +225,11 @@
 
 <script>
 /* ---------- 句庫 ---------- */
+/* Google Sheet：Speaking Lab 練習句（需設定「知道連結的任何人都能檢視」） */
+const SHEET_ID = "1Ahbkr4ue4J4ZVCzGR4f6g9r0OYTqlseRy1k06oadehw";
+
 const DECKS = [
+  {id:"sheet", name:"每日練習句", items:[]},
   {id:"intro", name:"自我介紹", items:[
     ["Hi, I'm Emily. I work in medical information services in Taiwan.","嗨，我是 Emily，在台灣做醫學資訊服務。"],
     ["I help hospitals and universities choose the right medical databases.","我協助醫院和大學選擇合適的醫學資料庫。"],
@@ -462,8 +475,86 @@ function renderCats(){
   $("cats").innerHTML = DECKS.map((d,i)=>`<button class="chip ${i===deckIdx?"on":""}" data-i="${i}">${esc(d.name)}</button>`).join("");
   $("cats").querySelectorAll(".chip").forEach(b => b.onclick = () => { deckIdx=+b.dataset.i; itemIdx=0; store.set("deck",deckIdx); store.set("item",0); renderCats(); renderItem(); });
 }
+/* ---------- Google Sheet 同步 ---------- */
+let sheetRows = store.get("sheetCache", []);   // [{date, en, zh, cat}]
+let sheetFilter = store.get("sheetFilter", "7d");
+let sheetState = {ok:null, at: store.get("sheetAt", null), msg:""};
+function parseCSV(text){
+  const rows=[]; let row=[], cell="", q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){ cell+='"'; i++; } else q=false; }
+      else cell+=c;
+    } else if(c==='"') q=true;
+    else if(c===','){ row.push(cell); cell=""; }
+    else if(c==='\n'){ row.push(cell); rows.push(row); row=[]; cell=""; }
+    else if(c!=='\r') cell+=c;
+  }
+  if(cell!=="" || row.length){ row.push(cell); rows.push(row); }
+  return rows;
+}
+function parseDate(s){
+  s=(s||"").trim(); if(!s) return null;
+  let m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
+  if(m) return new Date(+m[1], +m[2]-1, +m[3]);
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m) return new Date(+m[3], +m[1]-1, +m[2]);
+  const d = new Date(s); return isNaN(d) ? null : d;
+}
+function fmtDate(d){ return d ? (d.getMonth()+1)+"/"+d.getDate() : ""; }
+async function syncSheet(){
+  $("sheetStatus").textContent = "同步中…";
+  try{
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&t=${Date.now()}`;
+    const res = await fetch(url, {cache:"no-store"});
+    const text = await res.text();
+    if(!res.ok || /^\s*</.test(text)) throw new Error("not public");
+    const rows = parseCSV(text);
+    const head = (rows.shift()||[]).map(h => h.trim().toLowerCase());
+    const col = name => head.indexOf(name);
+    const iD=col("date"), iE=col("english"), iZ=col("chinese"), iC=col("category");
+    const seen = new Set();
+    sheetRows = rows.map(r => ({date:(r[iD]||"").trim(), en:(r[iE>=0?iE:1]||"").trim(), zh:(iZ>=0?r[iZ]:"")||"", cat:(iC>=0?r[iC]:"")||""}))
+      .filter(r => r.en && !seen.has(r.en.toLowerCase()) && seen.add(r.en.toLowerCase()))
+      .sort((a,b) => (parseDate(b.date)||0) - (parseDate(a.date)||0));
+    store.set("sheetCache", sheetRows);
+    sheetState = {ok:true, at:new Date().toISOString()}; store.set("sheetAt", sheetState.at);
+  }catch(e){
+    sheetState = {ok:false, at:sheetState.at, msg:"抓不到 Google Sheet：請確認共用設定為「知道連結的任何人都能檢視」，且網路正常。"+(sheetRows.length?"先顯示上次同步的句子。":"")};
+  }
+  applySheetFilter();
+  if(deck().id==="sheet") renderItem();
+}
+function applySheetFilter(){
+  const now = new Date(); now.setHours(0,0,0,0);
+  const days = {today:0, "7d":6, all:Infinity}[sheetFilter];
+  const list = sheetRows.filter(r => {
+    if(days===Infinity) return true;
+    const d = parseDate(r.date); if(!d) return false;
+    return (now - d)/86400000 <= days;
+  });
+  DECKS[0].items = list.map(r => [r.en, r.zh, r.date, r.cat]);
+}
+function renderSheetBar(){
+  const isSheet = deck().id==="sheet";
+  $("sheetBar").classList.toggle("hidden", !isSheet);
+  if(!isSheet) return;
+  const opts = [["today","今天"],["7d","最近 7 天"],["all","全部"]];
+  $("sheetFilters").innerHTML = opts.map(([k,l]) => `<button class="chip ${k===sheetFilter?"on":""}" data-f="${k}">${l}</button>`).join("");
+  $("sheetFilters").querySelectorAll(".chip").forEach(b => b.onclick = () => { sheetFilter=b.dataset.f; store.set("sheetFilter",sheetFilter); itemIdx=0; applySheetFilter(); renderItem(); });
+  const at = sheetState.at ? new Date(sheetState.at) : null;
+  $("sheetStatus").textContent = sheetState.ok===false ? "同步失敗" :
+    sheetState.ok===null ? "同步中…" : `共 ${sheetRows.length} 句 · ${at ? at.getHours()+":"+String(at.getMinutes()).padStart(2,"0") : ""} 同步`;
+  const empty = DECKS[0].items.length===0;
+  $("sheetEmpty").classList.toggle("hidden", !empty && sheetState.ok!==false);
+  $("sheetEmpty").textContent = sheetState.ok===false ? sheetState.msg : (sheetFilter==="today" ? "今天還沒有新句子，練完口說後會自動出現在這裡" : "這段期間沒有句子，試試「全部」");
+}
+$("sheetRefresh").onclick = syncSheet;
+
 function renderItem(){
   const d = deck();
+  renderSheetBar();
   const isCustom = d.id==="custom";
   $("customEditor").classList.toggle("hidden", !(isCustom && (d.items.length===0 || showEditor)));
   if(isCustom) $("customText").value = customItems.map(x => x[1] ? x[0]+"｜"+x[1] : x[0]).join("\n");
@@ -475,8 +566,9 @@ function renderItem(){
   $("interim").textContent = "";
   if(!has) return;
   if(itemIdx >= d.items.length) itemIdx = 0;
-  const [en, zh] = d.items[itemIdx];
-  $("catName").innerHTML = esc(d.name) + (isCustom ? ' · <a href="#" id="editCustom" style="color:var(--navy-2)">編輯</a>' : "");
+  const [en, zh, sDate, sCat] = d.items[itemIdx];
+  const extra = d.id==="sheet" ? [fmtDate(parseDate(sDate)), sCat].filter(Boolean).join(" · ") : "";
+  $("catName").innerHTML = esc(d.name) + (extra ? " · "+esc(extra) : "") + (isCustom ? ' · <a href="#" id="editCustom" style="color:var(--navy-2)">編輯</a>' : "");
   $("pos").textContent = (itemIdx+1) + " / " + d.items.length;
   $("target").textContent = en;
   $("zh").textContent = zh || "";
@@ -654,7 +746,9 @@ document.querySelectorAll(".modes button").forEach(b => b.onclick = () => {
   if(mode==="weak") renderWeak();
 });
 
+applySheetFilter();
 renderCats(); renderItem(); renderTopic(); renderStats();
+syncSheet();
 </script>
 </body>
 </html>
