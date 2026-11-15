@@ -184,11 +184,16 @@
 
   <!-- ========== 自由說 ========== -->
   <section id="m-free" class="hidden">
+    <div class="chips" id="topicCats"></div>
     <div class="card">
-      <div class="meta"><span>題目</span><button class="btn ghost" id="newTopic" style="padding:6px 12px;font-size:12px">換一題</button></div>
+      <div class="meta"><span id="topicMeta">題目</span><span id="topicPos"></span></div>
       <p class="target" id="topic"></p>
       <p class="zh" id="topicZh"></p>
+      <p class="small" id="topicTip" style="margin:8px 0 0;background:var(--orange-soft);color:#8A4A12;border-radius:10px;padding:6px 10px"></p>
       <div class="controls">
+        <button class="btn ghost" id="playQ" title="聽題目">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>題目
+        </button>
         <button class="btn rec" id="freeRec" title="開始／停止錄音">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v5"/></svg>
         </button>
@@ -196,14 +201,33 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg>我的
         </button>
       </div>
-      <div class="hint" id="freeHint">試著講 30–60 秒，講完按一次停止</div>
+      <div class="hint" id="freeHint">先自己講 30–60 秒，講完按一次停止，再看參考回答</div>
     </div>
     <div class="card">
       <p class="section-title">辨識出來的逐字稿</p>
       <div class="free-text" id="freeText"><span class="small">錄音後會出現在這裡</span></div>
       <div class="row" style="margin-top:12px">
-        <button class="btn primary" id="copyFree">複製逐字稿給 Claude 批改</button>
+        <button class="btn primary" id="copyFree">複製給 Claude 批改</button>
       </div>
+    </div>
+    <div class="card">
+      <div class="meta" style="align-items:center;margin-bottom:0">
+        <span class="section-title" style="margin:0">參考回答</span>
+        <button class="btn ghost" id="toggleAns" style="padding:6px 12px;font-size:12px">看參考回答</button>
+      </div>
+      <div id="ansBox" class="hidden" style="margin-top:10px">
+        <p class="free-text" id="ansText" style="margin:0 0 6px"></p>
+        <p class="small" style="margin:0 0 12px">參考回答是依你的經歷寫的範本，請換成你真實的細節，不用逐字背。</p>
+        <div class="row">
+          <button class="btn ghost" id="playAns">聽參考回答</button>
+          <button class="btn primary" id="shadowAns">逐句跟讀</button>
+        </div>
+      </div>
+    </div>
+    <div class="nav">
+      <button class="btn ghost" id="prevTopic">上一題</button>
+      <button class="btn ghost" id="newTopic">隨機</button>
+      <button class="btn ghost" id="nextTopic">下一題</button>
     </div>
   </section>
 
@@ -295,20 +319,82 @@ const DECKS = [
     ["I enjoy a career podcast that talks about workplace skills.","我喜歡一個談職場技能的 podcast。"],
     ["What's the best book you've read this year?","你今年讀過最好的書是哪本？"]
   ]},
+  {id:"answer", name:"參考回答", items:[]},
   {id:"custom", name:"＋ 我的句子", items:[]}
 ];
 
+/* 自由說題庫：cat / 題目 / 中文 / 答題提示 / 參考回答（請換成自己的真實內容） */
 const TOPICS = [
-  ["Tell me about your job.","介紹你的工作。"],
-  ["Describe a challenge you faced at work this week.","描述這週工作上遇到的一個挑戰。"],
-  ["What did you do last weekend?","你上週末做了什麼？"],
-  ["Why do you want to work at a multinational company?","你為什麼想到外商工作？"],
-  ["What is your biggest strength? Give an example.","你最大的優點是什麼？舉個例子。"],
-  ["Tell me about a book or podcast you like.","聊聊一本你喜歡的書或 podcast。"],
-  ["Describe your ideal home.","描述你理想中的家。"],
-  ["How do you handle stress?","你怎麼處理壓力？"],
-  ["Introduce one product you sell to a new client.","向新客戶介紹一個你賣的產品。"],
-  ["Tell me about your dance classes.","聊聊你的舞蹈課。"]
+  {cat:"面試", q:"Tell me about yourself.", zh:"請自我介紹。", tip:"現在 → 過去 → 未來，控制在 60 秒。",
+   ans:"I'm Emily. I work as an account manager at a medical information company in Taiwan. I sell medical databases and journals to hospitals and universities. I also run training workshops and marketing events. Before this, I studied information and communication for six years. What I enjoy most is building processes and connecting teams. Now I'm looking for a role where I can do more of that and use English every day."},
+  {cat:"面試", q:"Why are you leaving your current job?", zh:"你為什麼想離開現在的工作？", tip:"講想往哪裡去，不講想逃離什麼；不提薪水和主管。",
+   ans:"I've learned a lot in my current role. I handle sales, training, proposals, and system projects. Through this, I found that I enjoy building processes the most. Now I'm looking for a role where I can focus on that, in a larger and more structured company, and work in English."},
+  {cat:"面試", q:"Why do you want to work for a multinational company?", zh:"你為什麼想到外商工作？", tip:"連結你現在和國外原廠合作的經驗。",
+   ans:"I want to work with people from different backgrounds and learn global best practices. In my current job, I already work with international publishers, and I really enjoy it. A multinational company gives me a chance to grow and to use English in my daily work."},
+  {cat:"面試", q:"What are your strengths?", zh:"你的優點是什麼？", tip:"一個優點配一個例子。",
+   ans:"I'm good at turning complex information into clear structure. For example, I explain technical products in a way clients can understand. I also turn repeated manual work into simple tools. And I learn fast. I once took over projects with no handover and quickly rebuilt the full picture."},
+  {cat:"面試", q:"What is your biggest weakness?", zh:"你最大的缺點是什麼？", tip:"說一個真實缺點＋你已經在做的改善方法。",
+   ans:"I set very high standards for myself, so sometimes I spend too long on details. Now I agree on what good enough looks like with my manager before I start. This helps me spend my time on what matters most."},
+  {cat:"面試", q:"Tell me about a mistake you made at work.", zh:"說一個你在工作上犯的錯。", tip:"案例：口頭報價沒留書面紀錄。重點放在補救和學到什麼。",
+   ans:"In a three-year renewal, I agreed on a price with a client during a meeting, but I didn't confirm it in writing. Later, the client asked for a lower rate. I told my manager right away and designed a new plan. We gave a small discount, but only if the client bought more e-books. Now I always confirm verbal agreements in writing on the same day."},
+  {cat:"面試", q:"Tell me about a time you found a creative solution.", zh:"說一次你想出創意解法的經驗。", tip:"案例：約期錯開改成三年約，雙贏。",
+   ans:"A client had two services with different contract dates and separate budgets. They wanted one purchase, but the timing didn't match. I prepared several timelines and suggested a three-year contract that aligned both services. The client saved about ten percent, and we secured three years of revenue. It was a win-win."},
+  {cat:"面試", q:"How do you handle an unhappy client?", zh:"你怎麼處理不滿意的客戶？", tip:"案例：出版社強制套裝漲價。先聽、分開記錄、帶回原廠。",
+   ans:"First, I listen and write down the client's specific concerns. For example, when a publisher raised prices a lot, two of my clients were upset. Their needs were different, so I handled them one by one. I brought their feedback to the publisher, and I talked about value, not only price. I also kept them updated at every step."},
+  {cat:"面試", q:"How do you deal with unclear situations?", zh:"遇到不明確的狀況你怎麼處理？", tip:"案例：沒有交接就接手系統標案。",
+   ans:"I took over several projects from a colleague with no handover. First, I rebuilt the timeline from old emails and meeting notes. Then I agreed on clear roles with the project manager. The PM handled the technical side, and I focused on the client. When things are unclear, I organize the facts first and decide who owns what."},
+  {cat:"面試", q:"Tell me about a time you improved a process.", zh:"說一次你改善流程的經驗。", tip:"案例：用 AI 自建工具、報告自動化。最好帶一個省時數字。",
+   ans:"I had to make more than twenty usage reports every month, and our records were scattered. So I used AI tools to build my own systems, like a simple CRM and a report workflow. Now I upload the data, and the report is ready in the right template. This saves me many hours every month."},
+  {cat:"面試", q:"How do you work with a difficult stakeholder?", zh:"你怎麼和難合作的人共事？", tip:"不批評人，講結構問題和你的做法。",
+   ans:"I work between publishers, my company, and clients. Sometimes a publisher contacted my clients directly, and we didn't get the information. I didn't take it personally. I saw it as a communication problem. So I copied all three parties on important emails and confirmed next steps in writing."},
+  {cat:"面試", q:"How do you manage many tasks at the same time?", zh:"你怎麼同時處理很多工作？", tip:"講你的系統：清單、排序、主動更新。",
+   ans:"I handle three kinds of work: client renewals, system projects, and marketing events. First, I put everything in my own task system. Then I sort tasks by deadline and impact. For tasks that depend on others, I send short updates with a clear next date, so nothing gets lost."},
+  {cat:"面試", q:"How do you use AI in your work?", zh:"你在工作上怎麼使用 AI？", tip:"具體工具＋具體成果＋你怎麼確保正確。",
+   ans:"I use AI almost every day. I use it to draft proposals, organize meeting notes, and build small tools. For example, I built a CRM and a training platform with AI. I always check the results myself, because accuracy matters with clients."},
+  {cat:"面試", q:"Where do you see yourself in five years?", zh:"五年後你想成為什麼樣的人？", tip:"方向要和應徵職位一致：流程、營運、跨團隊。",
+   ans:"In five years, I hope to lead projects across teams, especially in operations or process design. I want to be the person who turns messy work into a clear system. I also hope my English will be strong enough to work with global teams easily."},
+  {cat:"面試", q:"Why should we hire you?", zh:"我們為什麼要錄取你？", tip:"三個理由：懂客戶、懂產品、會做工具。",
+   ans:"I understand both the client side and the product side. I can explain complex products in simple words, and I can build tools that save time. I learn fast, and I take ownership of my work. I believe I can bring structure and energy to your team."},
+  {cat:"面試", q:"How does your education help you in this role?", zh:"你的學歷背景對這個職位有什麼幫助？", tip:"資傳背景＋碩論（商業模式、社群策略）＋行銷實習。",
+   ans:"I studied information and communication. My master's thesis was about business models and social media strategy for event companies. I also worked as a marketing and event intern. So I understand both marketing and data, and I can connect them to real business needs."},
+  {cat:"面試", q:"How do you handle stress?", zh:"你怎麼處理壓力？", tip:"工作方法＋生活方式各一個。",
+   ans:"First, I break the problem into small steps, so it feels manageable. I also keep a clear task list. Outside work, I dance every week. It helps me clear my mind and come back with new energy."},
+  {cat:"面試", q:"What are your salary expectations?", zh:"你的期望薪資是多少？", tip:"先了解職責、請對方給範圍；實際數字面試前先想好。",
+   ans:"I'd like to learn more about the responsibilities first. Based on my experience and the market, I'm looking for a fair range. Could you share the budget for this role? I'm open to discussing it."},
+  {cat:"面試", q:"Do you have any questions for us?", zh:"你有什麼問題想問我們嗎？", tip:"一定要問，準備 2 題。",
+   ans:"Yes, thank you. What does success look like in this role after six months? And how does the team usually work with other departments?"},
+
+  {cat:"工作", q:"Introduce a medical video database to a nursing teacher.", zh:"向護理老師介紹一個醫學影音資料庫。", tip:"功能 → 怎麼用在課堂 → 好處。",
+   ans:"This database has thousands of short videos about clinical skills and lab methods. Your students can watch a procedure before they practice it. You can also add the videos to your course page. Many schools use it to help students learn faster."},
+  {cat:"工作", q:"Explain a price increase to a client.", zh:"向客戶說明漲價。", tip:"同理 → 原因 → 給選項。",
+   ans:"I understand this is not easy for your budget. The publisher raised the price because the package now includes more content. To help, I prepared two options. One keeps your current content, and the other adds more value. I'm happy to go through them with you."},
+  {cat:"工作", q:"Ask a publisher for a better deal for your client.", zh:"幫客戶向原廠爭取更好的條件。", tip:"客戶喜歡產品＋預算限制＋具體請求。",
+   ans:"Our client likes the product, and the usage is strong. But their budget is fixed this year. Could you offer a better price or a multi-year option? If we can solve this, I'm confident they will renew."},
+  {cat:"工作", q:"Explain what a usage report shows to a librarian.", zh:"向館員說明使用統計報告。", tip:"看什麼 → 怎麼用來做續訂決策。",
+   ans:"This report shows how often your users open each journal. You can see which titles are used the most and which are used less. This helps you decide what to renew. I can also compare the numbers with last year for you."},
+  {cat:"工作", q:"Open a training workshop.", zh:"為教育訓練開場。", tip:"問候 → 今天內容 → 時間 → 課後問卷。",
+   ans:"Good afternoon, everyone. Thank you for coming. Today I'll show you how to use this database in three steps. It will take about forty minutes. At the end, please scan the QR code to give us feedback. You can also win a small prize."},
+  {cat:"工作", q:"Describe a marketing event you planned.", zh:"描述一個你規劃過的行銷活動。", tip:"案例：年會晚宴賓果遊戲、有獎徵答。",
+   ans:"I planned a bingo game for a library conference dinner. Guests guessed answers before the questions were shown, and three correct answers won a prize. The questions were about libraries, reading, and our products. It got people talking and helped them remember our brand."},
+  {cat:"工作", q:"Describe a tool you built for your work.", zh:"介紹一個你為工作打造的工具。", tip:"案例：教育訓練管理平台。",
+   ans:"I built a training platform for my workshops. It has a course calendar, a page to show my slides, and a feedback form with a QR code. It also has a raffle for people who give feedback. Now I can collect feedback much faster."},
+  {cat:"工作", q:"Give your manager a quick project update.", zh:"向主管快速報告專案進度。", tip:"現況 → 下一步和時間 → 風險。",
+   ans:"Here's a quick update. The client agreed to the plan, and we're waiting for their budget approval. The next step is the formal quote, which I'll send by Friday. One risk is the timeline, so I suggest we confirm it this week."},
+  {cat:"工作", q:"Tell me about your job.", zh:"介紹你的工作。", tip:"對象、產品、你每天在做什麼。",
+   ans:"I work with hospitals, medical universities, and nursing schools. Most of my clients are librarians. I help them choose and renew medical databases. I also run training sessions, plan marketing events, and support some website and system projects."},
+  {cat:"工作", q:"Describe a challenge you faced at work this week.", zh:"描述這週工作上的一個挑戰。", tip:"用 STAR 講一件這週真實發生的事。",
+   ans:"This week, a client asked for a lower price on a renewal. The challenge was to keep the relationship without losing too much. I discussed it with my manager, and we offered a small discount with an extra purchase. The client accepted, and I confirmed everything in writing."},
+
+  {cat:"生活", q:"What did you do last weekend?", zh:"你上週末做了什麼？", tip:"用過去式！換成你真實的週末。",
+   ans:"Last weekend was pretty relaxing. On Saturday, I went to my dance class and learned a new routine. On Sunday, I stayed home, read a book, and planned my week."},
+  {cat:"生活", q:"Tell me about your dance classes.", zh:"聊聊你的舞蹈課。", tip:"從小跳舞的背景＋現在的 K-pop 課。",
+   ans:"I've been dancing since I was four. I learned ballet, folk dance, and modern dance. Now I take K-pop dance classes every week. After each class, I post a video. It's hard sometimes, but it's really fun."},
+  {cat:"生活", q:"Describe your ideal home.", zh:"描述你理想中的家。", tip:"Japandi：木頭、柔和顏色、簡單。",
+   ans:"My ideal home is in Japandi style. It mixes Japanese and Scandinavian design. I like natural wood, soft colors, and simple furniture. I want my home to feel calm, so I can rest after a busy day."},
+  {cat:"生活", q:"Tell me about a book or podcast you like.", zh:"聊聊你喜歡的書或 podcast。", tip:"一個觀念＋它怎麼改變你。",
+   ans:"I like a Taiwanese podcast about career skills. It gives practical advice about work and communication. I also love the book The Seven Habits. One idea that changed me is to begin with the end in mind."},
+  {cat:"生活", q:"Why are you learning English?", zh:"你為什麼在學英文？", tip:"目標＋你的練習方法。",
+   ans:"I want to use English at work and in interviews. Right now I don't use it much, so I practice every day for fifteen minutes. I talk with an AI coach and practice shadowing. Little by little, I feel more confident."}
 ];
 
 /* ---------- 儲存（localStorage 可能不可用） ---------- */
@@ -370,11 +456,12 @@ function align(a, b){
 
 /* ---------- 狀態 ---------- */
 let deckIdx = store.get("deck", 0), itemIdx = store.get("item", 0);
+if(!DECKS[deckIdx] || DECKS[deckIdx].id==="answer"){ deckIdx = 0; itemIdx = 0; }
 let customItems = store.get("custom", []);
 DECKS.find(d=>d.id==="custom").items = customItems;
 let mode = "shadow";
 let lastAttempt = null;
-let topicIdx = Math.floor(Math.random()*TOPICS.length);
+let topicIdx = 0;
 let freeLast = {topic:"", text:""};
 
 const $ = id => document.getElementById(id);
@@ -472,7 +559,7 @@ function createSession({onInterim, onDone, onState}){
 /* ---------- 跟讀模式 ---------- */
 function deck(){ return DECKS[deckIdx] || DECKS[0]; }
 function renderCats(){
-  $("cats").innerHTML = DECKS.map((d,i)=>`<button class="chip ${i===deckIdx?"on":""}" data-i="${i}">${esc(d.name)}</button>`).join("");
+  $("cats").innerHTML = DECKS.map((d,i)=> (d.id==="answer" && !d.items.length) ? "" : `<button class="chip ${i===deckIdx?"on":""}" data-i="${i}">${esc(d.name)}</button>`).join("");
   $("cats").querySelectorAll(".chip").forEach(b => b.onclick = () => { deckIdx=+b.dataset.i; itemIdx=0; store.set("deck",deckIdx); store.set("item",0); renderCats(); renderItem(); });
 }
 /* ---------- Google Sheet 同步 ---------- */
@@ -675,8 +762,43 @@ $("copyShadow").onclick = () => {
 };
 
 /* ---------- 自由說 ---------- */
-function renderTopic(){ const [en,zh]=TOPICS[topicIdx]; $("topic").textContent=en; $("topicZh").textContent=zh; }
-$("newTopic").onclick = () => { topicIdx=(topicIdx+1)%TOPICS.length; renderTopic(); };
+let topicCat = store.get("topicCat", "面試");
+function topicList(){ return topicCat==="全部" ? TOPICS : TOPICS.filter(t => t.cat===topicCat); }
+function renderTopicCats(){
+  const cats = ["面試","工作","生活","全部"];
+  $("topicCats").innerHTML = cats.map(c => `<button class="chip ${c===topicCat?"on":""}" data-c="${c}">${c}${c==="全部"?"":" "+TOPICS.filter(t=>t.cat===c).length}</button>`).join("");
+  $("topicCats").querySelectorAll(".chip").forEach(b => b.onclick = () => { topicCat=b.dataset.c; store.set("topicCat",topicCat); topicIdx=0; renderTopicCats(); renderTopic(); });
+}
+function curTopic(){ const l=topicList(); if(topicIdx>=l.length) topicIdx=0; return l[topicIdx]; }
+function renderTopic(){
+  const t = curTopic(), l = topicList();
+  $("topicMeta").textContent = t.cat;
+  $("topicPos").textContent = (topicIdx+1)+" / "+l.length;
+  $("topic").textContent = t.q; $("topicZh").textContent = t.zh;
+  $("topicTip").textContent = "答題提示：" + t.tip;
+  $("ansText").textContent = t.ans;
+  $("ansBox").classList.add("hidden"); $("toggleAns").textContent = "看參考回答";
+  $("freeText").innerHTML = '<span class="small">錄音後會出現在這裡</span>';
+  $("freeMine").disabled = true;
+  freeLast = {topic:"", text:""};
+}
+$("newTopic").onclick = () => { const n=topicList().length; if(n<2) return; let k; do{ k=Math.floor(Math.random()*n); }while(k===topicIdx); topicIdx=k; renderTopic(); };
+$("prevTopic").onclick = () => { const n=topicList().length; topicIdx=(topicIdx-1+n)%n; renderTopic(); };
+$("nextTopic").onclick = () => { const n=topicList().length; topicIdx=(topicIdx+1)%n; renderTopic(); };
+$("playQ").onclick = () => speak(curTopic().q);
+$("toggleAns").onclick = () => { const h=$("ansBox").classList.toggle("hidden"); $("toggleAns").textContent = h ? "看參考回答" : "收起"; };
+$("playAns").onclick = () => speak(curTopic().ans);
+$("shadowAns").onclick = () => {
+  const t = curTopic();
+  const sents = t.ans.split(/(?<=[.?!])\s+/).map(x=>x.trim()).filter(Boolean);
+  const d = DECKS.find(x => x.id==="answer");
+  d.items = sents.map(x => [x, t.q]);
+  d.name = "參考回答";
+  deckIdx = DECKS.indexOf(d); itemIdx = 0;
+  document.querySelector('.modes button[data-mode="shadow"]').click();
+  renderCats(); renderItem();
+  window.scrollTo({top:0, behavior:"smooth"});
+};
 const freeSession = createSession({
   onInterim: t => { $("freeText").textContent = t.trim(); },
   onState: (s, url) => {
@@ -703,7 +825,8 @@ $("copyFree").onclick = () => {
 3) 給我一個更自然、但仍是 B1 程度的版本，讓我跟讀
 
 題目：${freeLast.topic}
-逐字稿：${freeLast.text}`);
+逐字稿：${freeLast.text}
+（參考回答，供比對內容完整度：${curTopic().ans}）`);
 };
 
 /* ---------- 常錯字 ---------- */
@@ -747,7 +870,7 @@ document.querySelectorAll(".modes button").forEach(b => b.onclick = () => {
 });
 
 applySheetFilter();
-renderCats(); renderItem(); renderTopic(); renderStats();
+renderCats(); renderItem(); renderTopicCats(); renderTopic(); renderStats();
 syncSheet();
 </script>
 </body>
