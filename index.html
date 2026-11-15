@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Emily 的跟讀練習室</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
@@ -85,6 +85,23 @@
   .hidden{display:none!important}
   svg{width:20px;height:20px}
   .rec svg{width:30px;height:30px}
+
+  /* ---------- 底部固定操作列 ---------- */
+  .wrap{padding-bottom:calc(170px + env(safe-area-inset-bottom))}
+  .dock{position:fixed;left:0;right:0;bottom:0;z-index:5;background:rgba(255,255,255,.96);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(31,58,95,.06);padding:8px 16px max(12px, env(safe-area-inset-bottom))}
+  .dock-in{max-width:440px;margin:0 auto}
+  .dock .hint{min-height:16px;margin-bottom:2px}
+  .dock .interim{min-height:0;margin:0 0 4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .dock .interim:empty{display:none}
+  .dock-row{display:flex;align-items:center;justify-content:space-between;gap:6px}
+  .dock .tool{flex-direction:column;gap:2px;width:60px;padding:7px 0;border-radius:14px;font-size:12px}
+  .dock .navb{width:42px;height:42px;padding:0;flex:none}
+  .dock .rec{width:66px;height:66px;flex:none}
+  .dock .rec svg{width:28px;height:28px}
+  .mini{padding:4px 10px!important;font-size:12px!important}
+  .meta-r{display:flex;align-items:center;gap:8px}
+  .result, #freeCard{scroll-margin-top:12px}
+  .toast{bottom:calc(150px + env(safe-area-inset-bottom))}
 </style>
 </head>
 <body>
@@ -131,7 +148,7 @@
     </div>
 
     <div class="card" id="practiceCard">
-      <div class="meta"><span id="catName"></span><span id="pos"></span></div>
+      <div class="meta" style="align-items:center"><span id="catName"></span><span class="meta-r"><span id="pos"></span><button class="btn ghost mini" id="rand">隨機</button></span></div>
       <p class="target" id="target"></p>
       <p class="zh" id="zh"></p>
 
@@ -145,19 +162,6 @@
         <label class="tog"><input type="checkbox" id="keepAudio" checked>保存我的錄音</label>
       </div>
 
-      <div class="controls">
-        <button class="btn ghost" id="playModel" title="聽示範">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>示範
-        </button>
-        <button class="btn rec" id="recBtn" title="開始／停止錄音">
-          <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v5"/></svg>
-        </button>
-        <button class="btn ghost" id="playMine" disabled title="聽我的錄音">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg>我的
-        </button>
-      </div>
-      <div class="hint" id="hint">先聽示範，再按橘色按鈕跟著唸，唸完再按一次</div>
-      <div class="interim" id="interim"></div>
     </div>
 
     <div class="card result" id="result">
@@ -170,15 +174,30 @@
       <div class="heard" id="heard"></div>
       <p class="small" style="margin:0 0 12px">點紅色或橘色的字可以單獨聽發音。辨識系統會依上下文自動猜字，所以「被聽懂」不代表發音完美，但「沒被聽懂」通常就是要加強的地方。</p>
       <div class="row">
-        <button class="btn ghost" id="retry">再唸一次</button>
-        <button class="btn primary" id="copyShadow">複製結果給 Claude 分析</button>
+        <button class="btn ghost" id="retry" style="flex:1">再唸一次</button>
+        <button class="btn primary" id="resNext" style="flex:1">下一句</button>
       </div>
+      <button class="btn ghost" id="copyShadow" style="width:100%;margin-top:8px">複製結果給 Claude 分析</button>
     </div>
 
-    <div class="nav">
-      <button class="btn ghost" id="prev">上一句</button>
-      <button class="btn ghost" id="rand">隨機</button>
-      <button class="btn ghost" id="next">下一句</button>
+    <div class="dock" id="dockShadow">
+      <div class="dock-in">
+        <div class="hint" id="hint">先聽示範，再按橘色按鈕跟著唸，唸完再按一次</div>
+        <div class="interim" id="interim"></div>
+        <div class="dock-row">
+          <button class="btn ghost navb" id="prev" title="上一句" aria-label="上一句"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+          <button class="btn ghost tool" id="playModel" title="聽示範">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>示範
+          </button>
+          <button class="btn rec" id="recBtn" title="開始／停止錄音" aria-label="開始或停止錄音">
+            <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v5"/></svg>
+          </button>
+          <button class="btn ghost tool" id="playMine" disabled title="聽我的錄音">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg>我的
+          </button>
+          <button class="btn ghost navb" id="next" title="下一句" aria-label="下一句"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -186,24 +205,12 @@
   <section id="m-free" class="hidden">
     <div class="chips" id="topicCats"></div>
     <div class="card">
-      <div class="meta"><span id="topicMeta">題目</span><span id="topicPos"></span></div>
+      <div class="meta" style="align-items:center"><span id="topicMeta">題目</span><span class="meta-r"><span id="topicPos"></span><button class="btn ghost mini" id="newTopic">隨機</button></span></div>
       <p class="target" id="topic"></p>
       <p class="zh" id="topicZh"></p>
       <p class="small" id="topicTip" style="margin:8px 0 0;background:var(--orange-soft);color:#8A4A12;border-radius:10px;padding:6px 10px"></p>
-      <div class="controls">
-        <button class="btn ghost" id="playQ" title="聽題目">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>題目
-        </button>
-        <button class="btn rec" id="freeRec" title="開始／停止錄音">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v5"/></svg>
-        </button>
-        <button class="btn ghost" id="freeMine" disabled>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg>我的
-        </button>
-      </div>
-      <div class="hint" id="freeHint">先自己講 30–60 秒，講完按一次停止，再看參考回答</div>
     </div>
-    <div class="card">
+    <div class="card" id="freeCard">
       <p class="section-title">辨識出來的逐字稿</p>
       <div class="free-text" id="freeText"><span class="small">錄音後會出現在這裡</span></div>
       <div class="row" style="margin-top:12px">
@@ -224,10 +231,23 @@
         </div>
       </div>
     </div>
-    <div class="nav">
-      <button class="btn ghost" id="prevTopic">上一題</button>
-      <button class="btn ghost" id="newTopic">隨機</button>
-      <button class="btn ghost" id="nextTopic">下一題</button>
+    <div class="dock" id="dockFree">
+      <div class="dock-in">
+        <div class="hint" id="freeHint">先自己講 30–60 秒，講完按一次停止，再看參考回答</div>
+        <div class="dock-row">
+          <button class="btn ghost navb" id="prevTopic" title="上一題" aria-label="上一題"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+          <button class="btn ghost tool" id="playQ" title="聽題目">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>題目
+          </button>
+          <button class="btn rec" id="freeRec" title="開始／停止錄音" aria-label="開始或停止錄音">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v5"/></svg>
+          </button>
+          <button class="btn ghost tool" id="freeMine" disabled title="聽我的錄音">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg>我的
+          </button>
+          <button class="btn ghost navb" id="nextTopic" title="下一題" aria-label="下一題"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -507,10 +527,10 @@ function speak(text, rate){
 
 /* ---------- 錄音 + 辨識 ---------- */
 function createSession({onInterim, onDone, onState}){
-  let rec=null, mediaRec=null, stream=null, chunks=[], finals=[], active=false, audioUrl=null, stopping=false;
+  let rec=null, mediaRec=null, stream=null, chunks=[], finals=[], active=false, audioUrl=null, stopping=false, errored=false;
   async function start(){
     if(!SR){ toast("此瀏覽器不支援語音辨識"); return; }
-    finals=[]; chunks=[]; stopping=false;
+    finals=[]; chunks=[]; stopping=false; errored=false;
     if($("keepAudio").checked && navigator.mediaDevices && window.MediaRecorder){
       try{
         stream = await navigator.mediaDevices.getUserMedia({audio:true});
@@ -538,7 +558,9 @@ function createSession({onInterim, onDone, onState}){
     };
     rec.onerror = e => {
       const map = {"not-allowed":"麥克風權限被拒絕，請到瀏覽器設定允許","no-speech":"沒有偵測到聲音，再試一次","audio-capture":"抓不到麥克風；可以試著關掉「保存我的錄音」","network":"辨識需要網路連線"};
-      toast(map[e.error] || ("辨識錯誤：" + e.error));
+      if(e.error !== "aborted") toast(map[e.error] || ("辨識錯誤：" + e.error));
+      errored = true;
+      setTimeout(finish, 400); // 部分瀏覽器（iOS）出錯後不會觸發 onend，避免按鈕卡在「正在聽」
     };
     rec.onend = () => { finish(); };
     try{ rec.start(); active=true; onState("live"); }catch(e){ toast("無法開始辨識"); cleanup(); }
@@ -550,6 +572,7 @@ function createSession({onInterim, onDone, onState}){
     cleanup();
     onState("idle");
     const text = finals.map(f=>f.text).join(" ").trim();
+    if(!text && errored) return; // 已經用 toast 說明錯誤，不再補一則「沒有辨識到內容」
     const confs = finals.map(f=>f.conf).filter(c=>typeof c==="number" && c>0);
     onDone(text, confs.length ? confs.reduce((a,b)=>a+b,0)/confs.length : null);
   }
@@ -647,7 +670,7 @@ function renderItem(){
   if(isCustom) $("customText").value = customItems.map(x => x[1] ? x[0]+"｜"+x[1] : x[0]).join("\n");
   const has = d.items.length>0;
   $("practiceCard").classList.toggle("hidden", !has);
-  document.querySelector(".nav").classList.toggle("hidden", !has);
+  $("dockShadow").classList.toggle("hidden", !has);
   $("result").style.display = "none";
   $("playMine").disabled = true;
   $("interim").textContent = "";
@@ -669,16 +692,23 @@ $("saveCustom").onclick = () => {
   showEditor=false; itemIdx=0; renderItem();
   toast(customItems.length ? "已儲存 "+customItems.length+" 句" : "目前沒有句子");
 };
-$("prev").onclick = () => { const n=deck().items.length; itemIdx=(itemIdx-1+n)%n; store.set("item",itemIdx); renderItem(); };
-$("next").onclick = () => { const n=deck().items.length; itemIdx=(itemIdx+1)%n; store.set("item",itemIdx); renderItem(); };
-$("rand").onclick = () => { const n=deck().items.length; if(n<2) return; let k; do{ k=Math.floor(Math.random()*n); }while(k===itemIdx); itemIdx=k; renderItem(); };
+/* 卡片頂端不在畫面上半部時，捲回卡片頂端（扣掉上方一點空間） */
+function bringIntoView(el){
+  const top = el.getBoundingClientRect().top;
+  if(top < 0 || top > window.innerHeight * 0.45) window.scrollTo({top: Math.max(0, window.scrollY + top - 12), behavior:"smooth"});
+}
+function goItem(i){ const n=deck().items.length; if(!n) return; itemIdx=(i+n)%n; store.set("item",itemIdx); renderItem(); bringIntoView($("practiceCard")); }
+$("prev").onclick = () => goItem(itemIdx-1);
+$("next").onclick = () => goItem(itemIdx+1);
+$("resNext").onclick = () => goItem(itemIdx+1);
+$("rand").onclick = () => { const n=deck().items.length; if(n<2) return; let k; do{ k=Math.floor(Math.random()*n); }while(k===itemIdx); goItem(k); };
 $("playModel").onclick = () => speak($("target").textContent);
-$("retry").onclick = () => { $("result").style.display="none"; $("interim").textContent=""; $("recBtn").scrollIntoView({behavior:"smooth", block:"center"}); };
+$("retry").onclick = () => { $("result").style.display="none"; $("interim").textContent=""; bringIntoView($("practiceCard")); };
 
 const shadowSession = createSession({
   onInterim: t => { $("interim").textContent = t.trim(); },
   onState: (s, url) => {
-    if(s==="live"){ $("recBtn").classList.add("live"); $("hint").textContent="正在聽…唸完再按一次停止"; }
+    if(s==="live"){ $("recBtn").classList.add("live"); $("hint").textContent="正在聽…唸完再按一次停止"; $("result").style.display="none"; $("interim").textContent=""; bringIntoView($("practiceCard")); }
     if(s==="idle"){ $("recBtn").classList.remove("live"); $("hint").textContent="先聽示範，再按橘色按鈕跟著唸，唸完再按一次"; }
     if(s==="audio" && url){ $("playMine").disabled=false; }
   },
@@ -783,8 +813,8 @@ function renderTopic(){
   freeLast = {topic:"", text:""};
 }
 $("newTopic").onclick = () => { const n=topicList().length; if(n<2) return; let k; do{ k=Math.floor(Math.random()*n); }while(k===topicIdx); topicIdx=k; renderTopic(); };
-$("prevTopic").onclick = () => { const n=topicList().length; topicIdx=(topicIdx-1+n)%n; renderTopic(); };
-$("nextTopic").onclick = () => { const n=topicList().length; topicIdx=(topicIdx+1)%n; renderTopic(); };
+$("prevTopic").onclick = () => { const n=topicList().length; topicIdx=(topicIdx-1+n)%n; renderTopic(); bringIntoView($("m-free")); };
+$("nextTopic").onclick = () => { const n=topicList().length; topicIdx=(topicIdx+1)%n; renderTopic(); bringIntoView($("m-free")); };
 $("playQ").onclick = () => speak(curTopic().q);
 $("toggleAns").onclick = () => { const h=$("ansBox").classList.toggle("hidden"); $("toggleAns").textContent = h ? "看參考回答" : "收起"; };
 $("playAns").onclick = () => speak(curTopic().ans);
@@ -802,13 +832,14 @@ $("shadowAns").onclick = () => {
 const freeSession = createSession({
   onInterim: t => { $("freeText").textContent = t.trim(); },
   onState: (s, url) => {
-    if(s==="live"){ $("freeRec").classList.add("live"); $("freeHint").textContent="正在聽…講完按一次停止"; }
+    if(s==="live"){ $("freeRec").classList.add("live"); $("freeHint").textContent="正在聽…講完按一次停止"; bringIntoView($("freeCard")); }
     if(s==="idle"){ $("freeRec").classList.remove("live"); $("freeHint").textContent="試著講 30–60 秒，講完按一次停止"; }
     if(s==="audio" && url){ $("freeMine").disabled=false; }
   },
   onDone: text => {
     if(!text){ toast("沒有辨識到內容"); return; }
     $("freeText").textContent = text;
+    $("freeCard").scrollIntoView({behavior:"smooth", block:"start"});
     freeLast = {topic: $("topic").textContent, text};
     const hist = store.get("hist", []); hist.unshift({deck:"自由說", target:freeLast.topic, heard:text, score:null, date:new Date().toISOString()}); store.set("hist", hist.slice(0,300));
     renderStats();
